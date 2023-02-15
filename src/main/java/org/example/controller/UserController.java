@@ -33,7 +33,8 @@ public class UserController {
             String code = ValidateCodeUtils.generateValidateCode(6).toString();
             log.info("code={}", code);
 
-            //发送短信
+            //发送短信 TODO
+
             session.setAttribute(phone, code);
             return R.success("手机验证码发送成功");
         }
