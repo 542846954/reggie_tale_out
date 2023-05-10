@@ -1,6 +1,7 @@
 package org.example.controller;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import lombok.extern.slf4j.Slf4j;
 import org.example.common.CustomException;
@@ -15,14 +16,9 @@ import org.example.service.DishService;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.RedisTemplate;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.PutMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.TimeUnit;
@@ -50,6 +46,23 @@ public class DishController {
         String key = "dish_" + dishDto.getCategoryId() + "_1";
         redisTemplate.delete(key);
         return R.success("菜品保存成功");
+    }
+    @DeleteMapping
+    public R<String> delete(String ids){
+        String[] idList = ids.split(",");
+        dishService.removeByIds(Arrays.asList(idList));
+        return R.success("菜品删除成功");
+    }
+
+    @PostMapping("/status/{status}")
+    public R<String> updateStatus(String ids,@PathVariable Integer status){
+        String[] idList = ids.split(",");
+        Dish dish = new Dish();
+        dish.setStatus(status);
+        QueryWrapper<Dish> queryWrapper = new QueryWrapper<>();
+        queryWrapper.in("id",idList);
+        dishService.update(dish,queryWrapper);
+        return R.success("菜品起售停售成功");
     }
 
     /*菜品分页查询*/
