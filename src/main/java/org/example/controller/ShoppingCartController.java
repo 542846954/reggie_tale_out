@@ -3,6 +3,7 @@ package org.example.controller;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import lombok.extern.slf4j.Slf4j;
 import org.example.common.BaseContext;
+import org.example.common.CustomException;
 import org.example.common.R;
 import org.example.entity.ShoppingCart;
 import org.example.service.ShoppingCartService;
@@ -42,6 +43,33 @@ public class ShoppingCartController {
             shoppingCart.setNumber(1);
             shoppingCart.setCreateTime(LocalDateTime.now());
             shoppingCartService.save(shoppingCart);
+        }
+        return R.success(shoppingCart);
+    }
+
+    @PostMapping("/sub")
+    public R<ShoppingCart> sub(@RequestBody ShoppingCart shoppingCart){
+        log.info("购物车参数,{}", shoppingCart);
+        Long userId = BaseContext.getCurrentId();
+        Long dishId = shoppingCart.getDishId();
+        LambdaQueryWrapper<ShoppingCart> queryWrapper = new LambdaQueryWrapper<>();
+        queryWrapper.eq(ShoppingCart::getUserId, userId);
+        if (dishId != null) {
+            queryWrapper.eq(ShoppingCart::getDishId,dishId);
+        }else{
+            queryWrapper.eq(ShoppingCart::getSetmealId,shoppingCart.getSetmealId());
+        }
+        ShoppingCart one = shoppingCartService.getOne(queryWrapper);
+        if (!ObjectUtils.isEmpty(one)){
+            if (one.getNumber() > 1){
+                one.setNumber(one.getNumber() - 1);
+                shoppingCartService.updateById(one);
+                shoppingCart = one;
+            }else {
+                shoppingCartService.remove(queryWrapper);
+            }
+        }else {
+            throw new CustomException("已经没有当前菜品了，无法削减");
         }
         return R.success(shoppingCart);
     }

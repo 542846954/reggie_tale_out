@@ -379,6 +379,9 @@
               const res = await cartListApi({})
               if(res.code === 1){
                 this.cartData = res.data
+                if(this.cartData.length === 0){
+                  this.cartDialogShow = false
+                }
               }else{
                 this.$notify({ type:'warning', message:res.msg});
               }
