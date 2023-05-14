@@ -25,6 +25,7 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.Collectors;
 
 @Service
 public class OrderServiceImpl extends ServiceImpl<OrderMapper, Orders> implements OrderService {
@@ -48,20 +49,18 @@ public class OrderServiceImpl extends ServiceImpl<OrderMapper, Orders> implement
         LambdaQueryWrapper<ShoppingCart> queryWrapper = new LambdaQueryWrapper<>();
         queryWrapper.eq(ShoppingCart::getUserId, userId);
         List<ShoppingCart> shoppingCarts = shoppingCartService.list(queryWrapper);
-        if (ObjectUtils.isEmpty(shoppingCarts) || shoppingCarts.size() == 0) {
-            throw new CustomException("购物车为空，不能下单");
+        if (shoppingCarts == null || shoppingCarts.size() == 0) {
+            throw new CustomException("购物车为空，不可下单");
         }
+
+        //查询用户信息
         User user = userService.getById(userId);
-        Long addressBookId = orders.getAddressBookId();
-        AddressBook addressBook = addressBookService.getById(addressBookId);
-        if (ObjectUtils.isEmpty(addressBook)) {
-            throw new CustomException("用户地址信息有误，不准下单");
+        AddressBook addressBook = addressBookService.getById(orders.getAddressBookId());
+        if (addressBook == null) {
+            throw new CustomException("地址有误，不可下单");
         }
-
         long orderId = IdWorker.getId();
-
         AtomicInteger amount = new AtomicInteger(0);
-
         List<OrderDetail> orderDetailList = shoppingCarts.stream().map(item -> {
             OrderDetail orderDetail = new OrderDetail();
             orderDetail.setOrderId(orderId);
@@ -74,28 +73,26 @@ public class OrderServiceImpl extends ServiceImpl<OrderMapper, Orders> implement
             orderDetail.setAmount(item.getAmount());
             amount.addAndGet(item.getAmount().multiply(new BigDecimal(item.getNumber())).intValue());
             return orderDetail;
-        }).toList();
+        }).collect(Collectors.toList());
 
         orders.setNumber(String.valueOf(orderId));
+        orders.setId(orderId);
         orders.setOrderTime(LocalDateTime.now());
         orders.setCheckoutTime(LocalDateTime.now());
         orders.setStatus(2);
-        orders.setAmount(new BigDecimal(amount.get()));
+        orders.setAmount(new BigDecimal(String.valueOf(amount)));
         orders.setUserId(userId);
         orders.setUserName(user.getName());
         orders.setConsignee(addressBook.getConsignee());
         orders.setPhone(addressBook.getPhone());
-        orders.setAddress((addressBook.getProvinceName() == null ? "" : addressBook.getProvinceName())
-                + (addressBook.getCityName() == null ? "" : addressBook.getCityName())
-                + (addressBook.getDistrictName() == null ? "" : addressBook.getDistrictName())
-                + (addressBook.getDetail() == null ? "" : addressBook.getDetail()));
+        orders.setAddress((addressBook.getProvinceName() != null ? addressBook.getProvinceName() : "")
+                + (addressBook.getCityName() != null ? addressBook.getCityName() : "")
+                + (addressBook.getDistrictName() != null ? addressBook.getDistrictName() : "")
+                + (addressBook.getDetail() != null ? addressBook.getDetail() : ""));
         this.save(orders);
 
         orderDetailService.saveBatch(orderDetailList);
 
-        /*清空购物车*/
         shoppingCartService.remove(queryWrapper);
-
-
     }
 }
